@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/qiushiyan/gcache/pkg/cache"
 	"github.com/qiushiyan/gcache/pkg/store"
 )
 
@@ -13,13 +14,9 @@ var db = map[string]string{
 	"Sam":  "567",
 }
 
-func ByteViewFromString(s string) store.ByteView {
-	return store.ByteView{B: []byte(s)}
-}
-
 func TestCreateGroup(t *testing.T) {
 	name := "scores"
-	New(name, 10, nil)
+	New(name, 10, cache.LRU, nil)
 	if g := GetGroup(name); g == nil {
 		t.Fatal("create group failed")
 	}
@@ -27,7 +24,7 @@ func TestCreateGroup(t *testing.T) {
 
 func TestGetGroup(t *testing.T) {
 	name := "scores"
-	New(name, 10, nil)
+	New(name, 10, cache.LRU, nil)
 
 	if g := GetGroup(name); g.name != name {
 		t.Fatalf("get group failed, expect %s, get %s", name, g.name)
@@ -37,14 +34,14 @@ func TestGetGroup(t *testing.T) {
 
 func TestGroupGet(t *testing.T) {
 	loadCounts := make(map[string]int, len(db))
-	g := New("scores", 2<<10, store.GetterFunc(
+	g := New("scores", 2<<10, cache.LRU, store.GetterFunc(
 		func(key store.Key) (store.Value, error) {
 			if v, ok := db[string(key)]; ok {
 				if _, ok := loadCounts[string(key)]; !ok {
 					loadCounts[string(key)] = 0
 				}
 				loadCounts[string(key)] += 1
-				return ByteViewFromString(v), nil
+				return store.NewByteViewFromStr(v), nil
 			}
 			return nil, fmt.Errorf("%s not exist", key)
 		}))

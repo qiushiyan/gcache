@@ -18,11 +18,22 @@ var (
 	groups = make(map[string]*Group)
 )
 
-func New(name string, cacheCap int64, getter store.Getter) *Group {
+func List() []string {
+	mu.RLock()
+	defer mu.RUnlock()
+
+	var names []string
+	for k := range groups {
+		names = append(names, k)
+	}
+	return names
+}
+
+func New(name string, cacheCap int64, cacheType cache.CacheType, getter store.Getter) *Group {
 	g := &Group{
 		name:      name,
 		getter:    getter,
-		mainCache: cache.New(cacheCap, cache.LRU),
+		mainCache: cache.New(cacheCap, cacheType),
 	}
 
 	mu.Lock()
@@ -51,7 +62,18 @@ func (g *Group) Get(key store.Key) (store.Value, error) {
 	return g.load(key)
 }
 
+func (g *Group) Set(key store.Key, value store.Value) error {
+	if key.Empty() {
+		return store.ErrKeyEmpty
+	}
+	g.mainCache.Set(key, value)
+	return nil
+}
+
 func (g *Group) load(key store.Key) (store.Value, error) {
+	if g.getter == nil {
+		return nil, nil
+	}
 	value, err := g.getter.Get(key)
 	if err != nil {
 		return nil, store.ErrGetter.With(err)
