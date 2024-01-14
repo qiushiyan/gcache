@@ -1,6 +1,6 @@
 package store
 
-// A Getter loads data for a key.
+// A Getter loads data for a key in case of a cache miss
 type Getter interface {
 	Get(key Key) (Value, error)
 }

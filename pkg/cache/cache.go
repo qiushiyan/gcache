@@ -3,12 +3,12 @@ package cache
 import (
 	"sync"
 
-	"github.com/qiushiyan/gcache/pkg/lru"
 	"github.com/qiushiyan/gcache/pkg/store"
+	"github.com/qiushiyan/gcache/pkg/store/lru"
 )
 
 type Cache struct {
-	mu        sync.RWMutex
+	mu        *sync.RWMutex
 	store     store.Store
 	cap       int64
 	cacheType CacheType
