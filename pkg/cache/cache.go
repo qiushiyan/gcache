@@ -8,7 +8,7 @@ import (
 )
 
 type Cache struct {
-	mu        *sync.RWMutex
+	mu        sync.RWMutex
 	store     store.Store
 	cap       int64
 	cacheType CacheType

@@ -2,6 +2,7 @@ package lru
 
 import (
 	"container/list"
+	"fmt"
 	"log"
 
 	"github.com/qiushiyan/gcache/pkg/store"
@@ -36,6 +37,9 @@ func (c *Cache) Create(cap int64, cb store.EvictedCallback) *Cache {
 
 func (c *Cache) Get(key store.Key) (store.Value, bool) {
 	el, ok := c.cache[key]
+	for k, v := range c.cache {
+		fmt.Println(k, toEntry(v).value)
+	}
 	if !ok {
 		return nil, false
 	}
@@ -76,6 +80,7 @@ func toEntry(el *list.Element) *Entry {
 }
 
 func (c *Cache) Set(key store.Key, v store.Value) {
+
 	if el, ok := c.cache[key]; ok {
 		c.ll.MoveToFront(el)
 		entry := toEntry(el)

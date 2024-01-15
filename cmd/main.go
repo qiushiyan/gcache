@@ -1,6 +1,9 @@
 package main
 
 import (
+	"encoding/base64"
+	"encoding/json"
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,6 +14,11 @@ import (
 	"github.com/qiushiyan/gcache/pkg/store"
 )
 
+type Response struct {
+	Data  string  `json:"data"` // base 64 encoded
+	Error *string `json:"error"`
+}
+
 var db = map[string]string{
 	"Tom":  "630",
 	"Jack": "589",
@@ -20,11 +28,10 @@ var db = map[string]string{
 func createGroup() *group.Group {
 	return group.New("scores", 2<<10, cache.LRU, store.GetterFunc(
 		func(key store.Key) (store.Value, error) {
-			log.Println("[SlowDB] search key", key)
 			if v, ok := db[string(key)]; ok {
 				return store.NewByteView([]byte(v)), nil
 			}
-			return nil, fmt.Errorf("%s not exist", key)
+			return nil, fmt.Errorf("cannot find value for %s", key)
 		}))
 }
 
@@ -32,7 +39,7 @@ func startCacheServer(host string, peerAddrs []string, g *group.Group) {
 	pool := server.NewPool(host)
 	pool.AddPeer(peerAddrs...)
 	g.RegisterPeerPicker(pool)
-	http.ListenAndServe(host, pool)
+	log.Fatal(http.ListenAndServe(host[7:], pool))
 }
 
 func startAPIServer(apiAddr string, g *group.Group) {
@@ -40,21 +47,34 @@ func startAPIServer(apiAddr string, g *group.Group) {
 		func(w http.ResponseWriter, r *http.Request) {
 			key := r.URL.Query().Get("key")
 			v, err := g.Get(store.Key(key))
+
+			var response Response
 			if err != nil {
-				http.Error(w, err.Error(), http.StatusInternalServerError)
+				s := err.Error()
+				response.Error = &s
+			} else {
+				if v != nil {
+					view := v.(store.ByteView)
+					response.Data = base64.StdEncoding.EncodeToString(view.ByteSlice())
+				}
+			}
+			w.Header().Set("Content-Type", "application/json")
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("error building the response, %v", err), http.StatusInternalServerError)
 				return
 			}
-			view := v.(*store.ByteView)
-			w.Header().Set("Content-Type", "application/octet-stream")
-			w.Write(view.ByteSlice())
-
 		}))
 	log.Println("frontend server is running at", apiAddr)
-	http.ListenAndServe(apiAddr, nil)
+	log.Fatal(http.ListenAndServe(apiAddr[7:], nil))
 }
 
 func main() {
-	port := 8001
+	var port int
+	var api bool
+	flag.IntVar(&port, "port", 8001, "gcache server port")
+	flag.BoolVar(&api, "api", false, "Start a api server?")
+	flag.Parse()
 
 	apiAddr := "http://localhost:9999"
 	addrMap := map[int]string{
@@ -62,13 +82,16 @@ func main() {
 		8002: "http://localhost:8002",
 		8003: "http://localhost:8003",
 	}
+	host := addrMap[port]
 
-	var addrs []string
+	var peers = make([]string, len(addrMap))
 	for _, v := range addrMap {
-		addrs = append(addrs, v)
+		peers = append(peers, v)
 	}
 
 	g := createGroup()
-	go startAPIServer(apiAddr, g)
-	startCacheServer(addrMap[port], []string(addrs), g)
+	if api {
+		go startAPIServer(apiAddr, g)
+	}
+	startCacheServer(host, peers, g)
 }

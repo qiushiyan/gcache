@@ -27,6 +27,11 @@ type Pool struct {
 	clients map[string]peer.PeerClient // keyed by peer host, e.g. "http://10.0.0.2:8008"
 }
 
+type Response struct {
+	Data  string  `json:"data"` // base 64 encoded
+	Error *string `json:"error"`
+}
+
 func NewPool(host string) *Pool {
 	return &Pool{
 		host:    host,
@@ -34,6 +39,10 @@ func NewPool(host string) *Pool {
 		peers:   consistenthash.New(defaultReplicas, nil),
 		clients: make(map[string]peer.PeerClient),
 	}
+}
+
+func (p *Pool) Host() string {
+	return p.host
 }
 
 func (p *Pool) log(text string, args ...any) {
@@ -52,20 +61,15 @@ func (p *Pool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if v, err := g.Get(store.Key(key)); err != nil {
+		v, err := g.Get(store.Key(key))
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
-		} else {
-			if v == nil {
-				w.Header().Set("Content-Type", "text/plain")
-				w.Write([]byte("nil"))
-			} else {
-				w.Header().Set("Content-Type", "application/octet-stream")
-				view := v.(store.ByteView)
-				w.Write(view.ByteSlice())
-
-			}
 		}
+
+		view := v.(store.ByteView)
+		w.Header().Set("Content-Type", "application/octet-stream")
+		w.Write(view.ByteSlice())
 
 	} else {
 		http.Error(w, "Pool serving unexpected path: "+r.URL.Path, http.StatusBadRequest)
@@ -82,19 +86,25 @@ func (p *Pool) AddPeer(peerAddrs ...string) {
 		p.peers.Add(addr)
 		p.clients[addr] = client.New(addr)
 	}
+
 }
 
 // implements peer.PeerPicker
 func (p *Pool) PickPeer(key store.Key) (peer.PeerClient, bool) {
 	p.mu.RLock()
-	defer p.mu.Unlock()
+	defer p.mu.RUnlock()
 
-	if peer := p.peers.Get(string(key)); peer != "" && peer != p.host {
-		p.log("Pick peer %s", peer)
-		return p.clients[peer], true
+	peer := p.peers.Get(string(key))
+	if peer == "" {
+		p.log("peer is empty")
+	} else if peer == p.host {
+		p.log("peer is self")
 	} else {
-		return nil, false
+		p.log(fmt.Sprintf("%s pick peer %s", p.host, peer))
+		return p.clients[peer], true
 	}
+
+	return nil, false
 
 }
 
@@ -102,7 +112,7 @@ func (p *Pool) PickPeer(key store.Key) (peer.PeerClient, bool) {
 // parts should be [groupname, key]
 func (p *Pool) validateRequest(r *http.Request) (parts []string, ok bool) {
 	if !strings.HasPrefix(r.URL.Path, p.path) {
-		panic("HTTPPool serving unexpected path: " + r.URL.Path)
+		return nil, false
 	}
 	parts = strings.SplitN(r.URL.Path[len(p.path):], "/", 2)
 	if len(parts) != 2 {

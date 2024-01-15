@@ -9,5 +9,6 @@ type PeerClient interface {
 }
 
 type PeerPicker interface {
+	Host() string
 	PickPeer(key store.Key) (client PeerClient, ok bool)
 }

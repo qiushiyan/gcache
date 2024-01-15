@@ -24,12 +24,12 @@ func New(baseURL string) *Client {
 
 func (c *Client) Get(group string, key store.Key) ([]byte, error) {
 	u := fmt.Sprintf(
-		"%v%v/%v",
+		"%v/_gcache/%v/%v",
 		c.baseURL,
 		url.QueryEscape(group),
 		url.QueryEscape(string(key)),
 	)
-
+	fmt.Println(u)
 	resp, err := http.Get(u)
 	if err != nil {
 		return nil, err
