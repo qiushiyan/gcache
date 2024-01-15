@@ -86,11 +86,6 @@ func (g *Group) Get(key store.Key) (store.Value, error) {
 	g.log("cache miss for local cache")
 
 	v, err := g.load(key)
-	// if fetched from peer or getter successfully, update to main cache
-	if err == nil && v != nil {
-		g.log("sync value to local cache")
-		g.mainCache.Set(key, v)
-	}
 
 	if err != nil {
 		g.log("returning error:", err)
@@ -105,13 +100,26 @@ func (g *Group) load(key store.Key) (store.Value, error) {
 		if g.peerPicker != nil {
 			if client, ok := g.peerPicker.PickPeer(key); ok {
 				if v, err := g.getFromPeer(client, key); err == nil {
+					// if fetched from peer or getter successfully, update to main cache
+					if err == nil && v != nil {
+						g.log("sync value to local cache")
+						g.mainCache.Set(key, v)
+					}
 					return v, nil
 				}
 			}
 		}
 
 		// in any case peer is not available, fetch from getter func
-		return g.getFromGetter(key)
+		v, err := g.getFromGetter(key)
+		// if fetched from peer or getter successfully, update to main cache
+		if err == nil && v != nil {
+			g.log("sync value to local cache")
+			g.mainCache.Set(key, v)
+		}
+
+		return v, err
+
 	})
 	// fetch from peer nodes
 
