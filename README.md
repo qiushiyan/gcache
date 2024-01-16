@@ -1,6 +1,6 @@
 # gcache
 
-gcache is a distributed cache for golang.
+gcache is a distributed cache and cache-filling library for golang.
 
 # Usage and example log
 
