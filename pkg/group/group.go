@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/qiushiyan/gcache/pkg/cache"
+	pb "github.com/qiushiyan/gcache/pkg/gcachepb"
 	"github.com/qiushiyan/gcache/pkg/peer"
 	"github.com/qiushiyan/gcache/pkg/singleflight"
 	"github.com/qiushiyan/gcache/pkg/store"
@@ -133,11 +134,16 @@ func (g *Group) load(key store.Key) (store.Value, error) {
 }
 
 func (g *Group) getFromPeer(client peer.PeerClient, key store.Key) (store.Value, error) {
-	if bytes, err := client.Get(g.name, key); err != nil {
+	req := &pb.Request{
+		Group: g.name,
+		Key:   string(key),
+	}
+	res := &pb.Response{}
+	if err := client.Get(req, res); err != nil {
 		g.log("Failed to get from peer", err)
 		return nil, err
 	} else {
-		return store.NewByteView(bytes), nil
+		return store.NewByteView(res.Value), nil
 	}
 }
 

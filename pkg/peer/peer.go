@@ -1,11 +1,12 @@
 package peer
 
 import (
+	pb "github.com/qiushiyan/gcache/pkg/gcachepb"
 	"github.com/qiushiyan/gcache/pkg/store"
 )
 
 type PeerClient interface {
-	Get(group string, key store.Key) ([]byte, error)
+	Get(in *pb.Request, out *pb.Response) error
 }
 
 type PeerPicker interface {

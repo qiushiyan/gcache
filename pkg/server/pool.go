@@ -9,9 +9,11 @@ import (
 
 	"github.com/qiushiyan/gcache/pkg/client"
 	"github.com/qiushiyan/gcache/pkg/consistenthash"
+	pb "github.com/qiushiyan/gcache/pkg/gcachepb"
 	"github.com/qiushiyan/gcache/pkg/group"
 	"github.com/qiushiyan/gcache/pkg/peer"
 	"github.com/qiushiyan/gcache/pkg/store"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -68,8 +70,14 @@ func (p *Pool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 		view := v.(store.ByteView)
+		body, err := proto.Marshal(&pb.Response{Value: view.ByteSlice()})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/octet-stream")
-		w.Write(view.ByteSlice())
+		w.Write(body)
 
 	} else {
 		http.Error(w, "Pool serving unexpected path: "+r.URL.Path, http.StatusBadRequest)
