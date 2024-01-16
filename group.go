@@ -1,4 +1,4 @@
-package group
+package gcache
 
 import (
 	"log"
@@ -27,7 +27,7 @@ var (
 	groups = make(map[string]*Group)
 )
 
-func List() []string {
+func ListGroup() []string {
 	mu.RLock()
 	defer mu.RUnlock()
 
@@ -38,7 +38,7 @@ func List() []string {
 	return names
 }
 
-func New(name string, cacheCap int64, cacheType cache.CacheType, getter store.Getter) *Group {
+func NewGroup(name string, cacheCap int64, cacheType cache.CacheType, getter store.Getter) *Group {
 	g := &Group{
 		name:      name,
 		getter:    getter,

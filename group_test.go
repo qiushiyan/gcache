@@ -1,4 +1,4 @@
-package group
+package gcache
 
 import (
 	"fmt"
@@ -8,7 +8,7 @@ import (
 	"github.com/qiushiyan/gcache/pkg/store"
 )
 
-var db = map[string]string{
+var db1 = map[string]string{
 	"Tom":  "630",
 	"Jack": "589",
 	"Sam":  "567",
@@ -16,7 +16,7 @@ var db = map[string]string{
 
 func TestCreateGroup(t *testing.T) {
 	name := "scores"
-	New(name, 10, cache.LRU, nil)
+	NewGroup(name, 10, cache.LRU, nil)
 	if g := GetGroup(name); g == nil {
 		t.Fatal("create group failed")
 	}
@@ -24,7 +24,7 @@ func TestCreateGroup(t *testing.T) {
 
 func TestGetGroup(t *testing.T) {
 	name := "scores"
-	New(name, 10, cache.LRU, nil)
+	NewGroup(name, 10, cache.LRU, nil)
 
 	if g := GetGroup(name); g.name != name {
 		t.Fatalf("get group failed, expect %s, get %s", name, g.name)
@@ -33,10 +33,10 @@ func TestGetGroup(t *testing.T) {
 }
 
 func TestGroupGet(t *testing.T) {
-	loadCounts := make(map[string]int, len(db))
-	g := New("scores", 2<<10, cache.LRU, store.GetterFunc(
+	loadCounts := make(map[string]int, len(db1))
+	g := NewGroup("scores", 2<<10, cache.LRU, store.GetterFunc(
 		func(key store.Key) (store.Value, error) {
-			if v, ok := db[string(key)]; ok {
+			if v, ok := db1[string(key)]; ok {
 				if _, ok := loadCounts[string(key)]; !ok {
 					loadCounts[string(key)] = 0
 				}
@@ -46,7 +46,7 @@ func TestGroupGet(t *testing.T) {
 			return nil, fmt.Errorf("%s not exist", key)
 		}))
 
-	for k, v := range db {
+	for k, v := range db1 {
 		value, err := g.Get(store.Key(k))
 		if err != nil {
 			t.Fatalf("get key %s failed: %s", k, err)

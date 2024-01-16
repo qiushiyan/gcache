@@ -8,9 +8,8 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/qiushiyan/gcache"
 	"github.com/qiushiyan/gcache/pkg/cache"
-	"github.com/qiushiyan/gcache/pkg/group"
-	"github.com/qiushiyan/gcache/pkg/server"
 	"github.com/qiushiyan/gcache/pkg/store"
 )
 
@@ -25,8 +24,8 @@ var db = map[string]string{
 	"Sam":  "567",
 }
 
-func createGroup() *group.Group {
-	return group.New("scores", 2<<10, cache.LRU, store.GetterFunc(
+func createGroup() *gcache.Group {
+	return gcache.NewGroup("scores", 2<<10, cache.LRU, store.GetterFunc(
 		func(key store.Key) (store.Value, error) {
 			if v, ok := db[string(key)]; ok {
 				return store.NewByteView([]byte(v)), nil
@@ -35,14 +34,14 @@ func createGroup() *group.Group {
 		}))
 }
 
-func startCacheServer(host string, peerAddrs []string, g *group.Group) {
-	pool := server.NewPool(host)
+func startCacheServer(host string, peerAddrs []string, g *gcache.Group) {
+	pool := gcache.NewPool(host)
 	pool.AddPeer(peerAddrs...)
 	g.RegisterPeerPicker(pool)
 	log.Fatal(http.ListenAndServe(host[7:], pool))
 }
 
-func startAPIServer(apiAddr string, g *group.Group) {
+func startAPIServer(apiAddr string, g *gcache.Group) {
 	http.Handle("/api", http.HandlerFunc(
 		func(w http.ResponseWriter, r *http.Request) {
 			key := r.URL.Query().Get("key")

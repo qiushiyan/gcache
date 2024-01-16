@@ -1,4 +1,4 @@
-package server
+package gcache
 
 import (
 	"fmt"
@@ -10,7 +10,6 @@ import (
 	"github.com/qiushiyan/gcache/pkg/client"
 	"github.com/qiushiyan/gcache/pkg/consistenthash"
 	pb "github.com/qiushiyan/gcache/pkg/gcachepb"
-	"github.com/qiushiyan/gcache/pkg/group"
 	"github.com/qiushiyan/gcache/pkg/peer"
 	"github.com/qiushiyan/gcache/pkg/store"
 	"google.golang.org/protobuf/proto"
@@ -56,10 +55,10 @@ func (p *Pool) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		p.log("", "method", r.Method, "path", r.URL.Path)
 		groupName, key := parts[0], parts[1]
 
-		g := group.GetGroup(groupName)
+		g := GetGroup(groupName)
 		if g == nil {
 			http.Error(w, "no such group: "+groupName, http.StatusNotFound)
-			http.Error(w, "available groups: "+strings.Join(group.List(), ", "), http.StatusNotFound)
+			http.Error(w, "available groups: "+strings.Join(ListGroup(), ", "), http.StatusNotFound)
 			return
 		}
 
